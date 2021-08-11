@@ -1,6 +1,7 @@
 # FoxGLBox
 
-A small renderer project for learning.  
+A small renderer project for learning.   
+![Screenshot](https://i.imgur.com/dfuBsIC.jpg)
 
 ## Downloads
 
