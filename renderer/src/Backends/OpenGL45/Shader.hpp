@@ -3,6 +3,11 @@
 #include <string>
 #include <fstream>
 
+// =====================================================================
+//	OpenGL 4.5 shader
+// 
+//	Backend-specific shader class, handles shader-related OpenGL calls
+// =====================================================================
 class Shader : public IShader
 {
 public:

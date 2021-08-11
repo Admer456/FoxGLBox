@@ -30,6 +30,7 @@ enum
 
 extern bool GLError( const char* why );
 
+// =====================================================================
 // VertexArray
 // 
 // Manages VAOs and EBOs
@@ -38,6 +39,7 @@ extern bool GLError( const char* why );
 // Every draw surface is equivalent to one vertex array
 // When initialising a model, you first generate & bind a VAO&EBO,
 // then generate, bind & buffer a VBO, then set up vertex attributes
+// =====================================================================
 class VertexArray
 {
 public:
@@ -110,10 +112,12 @@ private:
     IMaterial* material{ nullptr };
 };
 
+// =====================================================================
 // VertexBuffer
 // 
 // Manages VBOs
 // Holds render data
+// =====================================================================
 class VertexBuffer
 {
 public:

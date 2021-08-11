@@ -2,15 +2,20 @@
 
 #include <string>
 
+// =====================================================================
+// Model
+// 
+// Class that handles model loading
+// =====================================================================
 class Model final
 {
 public:
-    void LoadFromPath( const char* filePath );
-    bool Okay() const;
+    void        LoadFromPath( const char* filePath );
+    bool        Okay() const;
 
-    bool okay{ false };
+    bool        okay{ false };
     std::string name;
-    DrawMesh mesh;
+    DrawMesh    mesh;
 };
 
 /*

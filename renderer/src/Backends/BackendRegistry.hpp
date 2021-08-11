@@ -6,6 +6,10 @@ IRenderer* GetRendererByBackend( int backend );
 
 using RenderBackendAllocator = IRenderer* ();
 
+// =====================================================================
+// Static linked list of registries
+// Doesn't work with static libs for some reasons
+// =====================================================================
 class BackendRegistry
 {
 public:
@@ -62,13 +66,12 @@ class BackendRegister
 public:
 	BackendRegister()
 	{
-		printf( "API name: %s\n", BackendType().GetAPIName() );
+		printf( "Registered API name: %s\n", BackendType().GetAPIName() );
 	}
 
 	static IRenderer* AllocateInstance()
 	{
 		static BackendRegistry registry = BackendRegistry( AllocateInstance, BackendType::BackendType );
-
 		return new BackendType();
 	}
 };

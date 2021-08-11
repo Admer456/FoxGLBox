@@ -21,6 +21,8 @@ void Texture::Init()
 // =====================================================================
 void Texture::Bind( uint8_t textureUnit )
 {
+	// A texture is sometimes bound while being loaded,
+	// so it can be buffered to the GPU
 	if ( !loaded )
 	{
 		glActiveTexture( GL_TEXTURE0 + textureUnit );
@@ -87,6 +89,7 @@ void Texture::LoadDirect( int textureWidth, int textureHeight,
 	int textureDataType = GL_UNSIGNED_BYTE;
 	int textureFormat = GL_RGB;
 
+	// TODO: maybe put this in a separate function?
 	if ( flags & TextureFlag_FloatSized )
 	{
 		textureDataType = GL_FLOAT;

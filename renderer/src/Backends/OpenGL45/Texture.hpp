@@ -9,22 +9,23 @@
 class Texture final : public FrontendTexture
 {
 public:
-	void Init() override;
-	void Bind( uint8_t textureUnit ) override;
-	void LoadDirect( int textureWidth, int textureHeight,
+	void		Init() override;
+	void		Bind( uint8_t textureUnit ) override;
+	void		LoadDirect( int textureWidth, int textureHeight,
 					 TextureType textureType, uint16_t textureFlags, byte* data ) override;
 
-	void SetName( const char* newName )
+	void		SetName( const char* newName )
 	{
 		name = newName;
 	}
 
 private:
-	void DetermineTextureRepeat();
-	void DetermineTextureFilter();
+	// These assume that the texture is currently bound
+	void		DetermineTextureRepeat();
+	void		DetermineTextureFilter();
 
-	uint32_t textureHandle{ 0 };
-	bool loaded{ false };
+	uint32_t	textureHandle{ 0 };
+	bool		loaded{ false };
 };
 
 /*
