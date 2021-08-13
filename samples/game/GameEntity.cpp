@@ -7,6 +7,9 @@
 
 #include "glm/gtc/matrix_transform.hpp"
 
+#include "IPhysics.hpp"
+#include "Physics.hpp"
+
 using namespace Entities;
 
 //============================
@@ -86,6 +89,31 @@ void PropRotating::Update( const float& deltaTime )
 	Prop::Update( deltaTime );
 
 	rotation.y += deltaTime * 15.0f;
+}
+
+//============================
+// PropPhysical
+//============================
+
+void PropPhysical::Spawn()
+{
+	Prop::Spawn();
+	physObject = gPhysics.CreatePhysicsObject( position, rotation );
+	if ( nullptr == physObject )
+	{
+		entityFlags.visible = false;
+		entityFlags.canThink = false;
+		return;
+	}
+
+	entityFlags.canThink = true;
+}
+
+void PropPhysical::Update( const float& deltaTime )
+{
+	Prop::Update( deltaTime );
+
+	physObject->GetTransform( position, rotation );
 }
 
 //============================

@@ -2,6 +2,8 @@
 
 #include <string>
 
+class PhysicsObject;
+
 namespace Entities
 {
 	constexpr int MaxGameEntities = 1024;
@@ -60,6 +62,16 @@ namespace Entities
 	public:
 		void			Spawn() override;
 		void			Update( const float& deltaTime ) override;
+	};
+
+	class PropPhysical : public Prop
+	{
+	public:
+		void			Spawn() override;
+		void			Update( const float& deltaTime ) override;
+
+	protected:
+		PhysicsObject*	physObject{ nullptr };
 	};
 
 	class Player final : public GameEntity

@@ -179,6 +179,9 @@ void Engine::CreateGameEntities()
     CreateEntity<PropRotating>( fglVector( 2.0f, 0.0f, 3.0f ), fglVector::Zero, amanHandle );
     CreateEntity<Player>( fglVector( -8.0f, 0.0f, 0.0f ), fglVector::Zero, 0 );
 
+    for ( int i = 0; i < 10; i++ )
+        CreateEntity<PropPhysical>( fglVector( 10.0f, 0.0f, 20.0 + 2.2f * i ), fglVector::Zero, amanHandle );
+
     for ( auto& ent : gameEntities )
     {
         if ( nullptr != ent )
