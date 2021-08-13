@@ -10,6 +10,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 
 #include "Engine.hpp"
+#include "IPhysics.hpp"
 
 namespace chrono = std::chrono;
 
@@ -51,6 +52,8 @@ void Engine::Init( const char* title, int width, int height )
     // Set relative mouse mode
     SDL_SetRelativeMouseMode( SDL_TRUE );
 
+    GetPhysics().Init();
+
     // Populate the world with entities
     CreateGameEntities();
 }
@@ -75,6 +78,8 @@ bool Engine::RunFrame()
                 }
             }
         }
+
+        GetPhysics().Update( frameTime );
 
         // Update all updateable entities
         for ( auto& ent : gameEntities )
