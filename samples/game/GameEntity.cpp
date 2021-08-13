@@ -67,6 +67,8 @@ void Prop::Spawn()
 
 void Prop::Present()
 {
+	CalculateRenderParams();
+	gEngine->GetRenderWorld()->UpdateEntity( renderHandle, renderParams );
 }
 
 //============================
@@ -82,9 +84,6 @@ void PropRotating::Spawn()
 void PropRotating::Update( const float& deltaTime )
 {
 	Prop::Update( deltaTime );
-
-	CalculateRenderParams();
-	gEngine->GetRenderWorld()->UpdateEntity( renderHandle, renderParams );
 
 	rotation.y += deltaTime * 15.0f;
 }
