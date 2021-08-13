@@ -8,7 +8,7 @@ public:
     static const fglVector Zero;
     static const fglVector Identity;
 
-    // Forward = Y, Right = X, Up = Z
+    // Forward = +Y, Right = +X, Up = +Z
     static const fglVector Forward;
     static const fglVector Right;
     static const fglVector Up;
