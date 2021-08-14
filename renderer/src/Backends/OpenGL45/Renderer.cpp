@@ -332,6 +332,8 @@ void Renderer_OpenGL45::BindDefaultShader()
 // =====================================================================
 void Renderer_OpenGL45::SetupMatrices( const RenderEntityParams& params, IShader* shader )
 {
+	// TODO: calculate proj matrix at the start of the frame
+	// 
 	// Get the projection matrix going
 	float width = currentView.viewportWidth, height = currentView.viewportHeight;
 	const glm::mat4 projectionMatrix = glm::perspective(
@@ -342,16 +344,21 @@ void Renderer_OpenGL45::SetupMatrices( const RenderEntityParams& params, IShader
 
 	shader->SetProjectionMatrix( projectionMatrix );
 
+	// TODO: calculate model matrices in the render entity, and if it's
+	// a static prop, do not update it
+	// 
 	// Calculate the model matrix
 	const glm::vec3& position = params.position;
 	const glm::mat4& axis = params.orientation; // orientation contains angles & scale
-
-	glm::mat4 modelMatrix = glm::translate( glm::identity<glm::mat4>(), position ); // move the model
+	// Move the model then rotate
+	glm::mat4 modelMatrix = glm::translate( glm::identity<glm::mat4>(), position );
 	modelMatrix *= axis;
 
 	// Set the model matrix
 	shader->SetModelMatrix( modelMatrix );
 
+	// TODO: calculate the view matrix at the start of the frame
+	// 
 	// Set the view matrix, ultimately
 	glm::mat4 viewMatrix = currentView.cameraOrientation;
 	viewMatrix = glm::translate( viewMatrix, currentView.cameraPosition );
