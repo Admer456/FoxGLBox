@@ -1,17 +1,21 @@
 #pragma once
 
+struct RenderBatchParam
+{
+    glm::mat4           modelMatrix;
+};
+
 struct RenderEntityParams
 {
     glm::vec3           position;
     glm::mat4           orientation; // and scale
     RenderModelHandle   model;
     int                 renderMask{ 0 }; // if 0, it gets rendered everywhere
-};
 
-struct RenderBatchParams
-{
-    glm::vec3           position;
-    glm::mat3           orientation;
+    // Must point to valid, living memory! The renderer doesn't copy the renderbatch
+    // data, it just references it
+    RenderBatchParam*   batch{ nullptr };
+    uint32_t            batchSize{ 0 };
 };
 
 /*

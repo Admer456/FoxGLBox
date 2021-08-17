@@ -1,10 +1,17 @@
 #pragma once
 
+// =====================================================================
+// RenderEntity
+// 
+// Internal render entity representation
+// =====================================================================
 class RenderEntity
 {
 public:
-    RenderEntityParams params;
-
+    // Parameters that matter to the renderer
+    RenderEntityParams  params;
+    // Backend-specific objects for batch rendering
+    BatchHandle         batchID{ BatchInvalid };
 };
 
 /*

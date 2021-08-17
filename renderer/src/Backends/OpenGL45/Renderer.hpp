@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 class Model;
 class VertexBuffer;
 
@@ -24,23 +26,17 @@ public:
     // Creates & compiles a shader from a shader file
     IShader*            CreateShader( const char* shaderFile ) override;
     // Gets the default shader
-    IShader*            GetDefaultShader() override
-    { return &defaultShader; }
+    IShader*            GetDefaultShader() override { return &defaultShader; }
     // Reloads all shaders
     void                ReloadShaders() override;
-
-    // Renders a DrawSurface, is equivalent to 1 drawcall
-    // @param params: render entity parameters, to position and rotate the model in space, among other things
-    // @param surface: surface ID, must not be bigger than the number of surfaces in a model
-    void                RenderSurface( const RenderEntityParams& params, const int& surface ) override;
 
     // Renders multiple DrawSurface instances, is still equivalent to 1 drawcall (depending on the backend)
     // @param params: render entity parameters, to position and rotate the model in space, among other things
     // @param surface: surface ID, must not be bigger than the number of surfaces in a model
-    // @param batchParams: batch-specific parameters for each instance
+    // @param batchHandle: handle to the backend batch object
     // @param batchSize: how many instances to draw
-    void                RenderSurfaceBatch( const RenderModelHandle& params, const int& surface,
-                                            const RenderBatchParams* batchParams, const int& batchSize ) override;
+    void                RenderSurfaceBatch( const RenderEntityParams& params, const int& surface,
+                                            const BatchHandle& batchHandle, const int& batchSize ) override;
 
     // Set the render view, update the viewport etc.
     void                SetRenderView( const RenderView* view ) override;
@@ -62,26 +58,34 @@ public:
     // Updates a texture with new data
     void                UpdateTexture( ITexture* texture, byte* data ) override;
 
+    // Registers a render batch so a render entity can be rendered in multiple instances
+    BatchHandle         CreateBatch( RenderBatchParam* params, const int& batchSize ) override;
+    // Updates data for this render batch
+    void                UpdateBatch( const BatchHandle& handle, RenderBatchParam* params, const int& batchSize ) override;
+    // Checks if the handle and the batch at the handle are valid
+    bool                IsBatchValid( const BatchHandle& handle ) override;
+
 private:
     bool                InitDefaultShader();
     void                BindDefaultShader();
 
     void                SetupMatrices( const RenderEntityParams& params, IShader* shader );
-    void                PerformDrawCall( VertexArray& va, const RenderBatchParams* batchParams = nullptr, 
-                                         const uint32_t& batchSize = 0 );
+    void                PerformDrawCall( VertexArray& va, const uint32_t& batchSize = 0 );
 
 private:
     using VertexArrayGroup = std::vector<VertexArray>;
 
     std::vector<VertexArrayGroup> vertexArrays;
     std::vector<VertexBuffer> vertexBuffers;
-
+    std::vector<InstancedArray> instancedArrays;
+    
     RenderView          currentView;
 
     Shader              defaultShader;
 
 private: // Statistics
     uint32_t            numDrawCalls;
+    uint32_t            numDrawnTriangles;
 };
 
 /*

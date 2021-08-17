@@ -5,6 +5,8 @@
 #include "IRenderer.hpp"
 #include "stb_image.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 // =====================================================================
 // RenderWorld::Init
 // =====================================================================
@@ -54,7 +56,7 @@ const char* RenderWorld::GetAPIName() const
 }
 
 // =====================================================================
-// RenderWorld::GetAPIName
+// RenderWorld::IsHardware
 // =====================================================================
 bool RenderWorld::IsHardware() const
 {
@@ -71,7 +73,11 @@ RenderEntityHandle RenderWorld::CreateEntity( const RenderEntityParams& params )
     {
         if ( !ent.active )
         {
+            // Construct the render entity
             ent.re = RenderEntity{ params };
+            // For render batching
+            ent.re.batchID = GetBatchIndex( params );
+            // So the entity can be rendered from now on
             ent.active = true;
             return i;
         }
@@ -284,7 +290,7 @@ IShader* RenderWorld::LoadShader( const char* path )
 }
 
 // =====================================================================
-// RenderWorld::RenderFrame
+// RenderWorld::ReloadShaders
 // =====================================================================
 void RenderWorld::ReloadShaders()
 {
@@ -308,6 +314,8 @@ void RenderWorld::RenderFrame( const RenderView& view )
 {
     backend->Clear();
     backend->BeginFrame();
+
+    // TODO: Subviews
     backend->SetRenderView( &view );
 
     for ( auto& e : entities )
@@ -315,18 +323,30 @@ void RenderWorld::RenderFrame( const RenderView& view )
         if ( e.active )
         {
             // Render all surfaces of the render entity's model
+            int batchSize = e.re.params.batchSize;
+            BatchHandle batchId = e.re.batchID;
+            
             int numSurfaces = GetNumSurfacesForModel( e.re.params.model );
             if ( numSurfaces == RenderHandleInvalid )
             {
                 continue;
             }
 
-            for ( int i = 0; i < numSurfaces; i++ )
+            // Invalid batches render as single instances
+            if ( !backend->IsBatchValid( batchId ) )
             {
-                backend->RenderSurface( e.re.params, i );
+                batchSize = 0;
+                batchId = BatchInvalid;
             }
 
-            // If this entity was temporary, then deactivate it
+            // All surfaces go through the rendering
+            // TODO: Material properties to not render under certain circumstances
+            for ( int i = 0; i < numSurfaces; i++ )
+            {
+                backend->RenderSurfaceBatch( e.re.params, i, batchId, batchSize );
+            }
+
+            // This entity was rendered by CreateImmediateEntity, remove it from the next frame
             if ( e.temporary )
             {
                 e.active = false;
@@ -339,7 +359,7 @@ void RenderWorld::RenderFrame( const RenderView& view )
 }
 
 // =====================================================================
-// RenderWorld::RenderSurface
+// RenderWorld::GetNumSurfacesForModel
 // =====================================================================
 uint32_t RenderWorld::GetNumSurfacesForModel( const RenderModelHandle& handle )
 {
@@ -349,6 +369,42 @@ uint32_t RenderWorld::GetNumSurfacesForModel( const RenderModelHandle& handle )
     }
 
     return models.at( handle ).mesh.surfaces.size();
+}
+
+// =====================================================================
+// RenderWorld::GetBatchIndex
+// =====================================================================
+BatchHandle RenderWorld::GetBatchIndex( const RenderEntityParams& params )
+{
+    if ( nullptr == params.batch || params.batchSize <= BatchSizeThreshold )
+    {
+        return BatchInvalid;
+    }
+
+    auto batchIter = batches.find( &params );
+    if ( batchIter != batches.end() )
+    {
+        return batchIter->second;
+    }
+
+    BatchHandle handle = backend->CreateBatch( params.batch, params.batchSize );
+    if ( handle != BatchInvalid )
+    {
+        batches[&params] = handle;
+    }
+    
+    return handle;
+}
+
+// =====================================================================
+// RenderWorld::CalculateModelMatrix
+// =====================================================================
+glm::mat4 RenderWorld::CalculateModelMatrix( const glm::vec3& position, const glm::mat4& orientation )
+{
+    glm::mat4 modelMatrix = glm::translate( glm::identity<glm::mat4>(), position );
+    modelMatrix *= orientation;
+    
+    return modelMatrix;
 }
 
 /*

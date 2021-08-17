@@ -124,6 +124,8 @@ bool Renderer_OpenGL45::IsHardware() const
 void Renderer_OpenGL45::BeginFrame()
 {
 	numDrawCalls = 0;
+	numDrawnTriangles = 0;
+
 	glEnable( GL_DEPTH_TEST );
 	glEnable( GL_CULL_FACE );
 	glCullFace( GL_BACK );
@@ -139,6 +141,8 @@ void Renderer_OpenGL45::EndFrame()
 	glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
 	glUseProgram( 0 );
+
+	printf( "## Draw calls: %i\n## Triangles: %6.1f K (%3.3f million)\n", (int)numDrawCalls, (numDrawnTriangles / 1000.0f), (numDrawnTriangles / 1000.0f / 1000.0f) );
 }
 
 // =====================================================================
@@ -168,19 +172,26 @@ void Renderer_OpenGL45::ReloadShaders()
 }
 
 // =====================================================================
-// Renderer_OpenGL45::RenderSurface
+// Renderer_OpenGL45::RenderSurfaceBatch
 // =====================================================================
-void Renderer_OpenGL45::RenderSurface( const RenderEntityParams& params, const int& surface )
-{	
+void Renderer_OpenGL45::RenderSurfaceBatch( const RenderEntityParams& params, const int& surface,
+											const BatchHandle& batchHandle, const int& batchSize )
+{
 	CanErrorPrint = false;
-	
+
 	// Get the render data stuff
 	VertexArray& va = vertexArrays[params.model].at( surface );
 	ITexture* tex = va.GetMaterial()->GetTexture( TextureType_Albedo, 0 );
 	IShader* shader = va.GetMaterial()->GetShader();
 
+	uint16_t shaderFlags = ShaderFlag_Normal;
+	if ( batchSize > BatchSizeThreshold )
+	{
+		shaderFlags |= ShaderFlag_Instanced;
+	}
+
 	// Bind the shader
-	shader->Bind();
+	shader->Bind( shaderFlags );
 
 	// -------------------------------------
 	// TODO:
@@ -196,21 +207,24 @@ void Renderer_OpenGL45::RenderSurface( const RenderEntityParams& params, const i
 	// -------------------------------------
 
 	// Set up the matrices
+	// TODO: Set up the projection and view matrices at the start of the frame?
 	SetupMatrices( params, shader );
 
+	// Bind the VA so we know what we're supposed to render
+	va.Bind();
+
+	// Also bind an instanced array
+	if ( batchSize > BatchSizeThreshold )
+	{
+		InstancedArray& ia = instancedArrays[batchHandle];
+		ia.Bind();
+		ia.SetupVertexAttributes();
+	}
+
 	// GPU, RENDER NOW!
-	PerformDrawCall( va );
+	PerformDrawCall( va, batchSize );
 
 	CanErrorPrint = true;
-}
-
-// =====================================================================
-// Renderer_OpenGL45::RenderSurfaceBatch
-// =====================================================================
-void Renderer_OpenGL45::RenderSurfaceBatch( const RenderModelHandle& params, const int& surface, 
-											const RenderBatchParams* batchParams, const int& batchSize )
-{
-
 }
 
 // =====================================================================
@@ -300,6 +314,58 @@ void Renderer_OpenGL45::UpdateTexture( ITexture* texture, byte* data )
 }
 
 // =====================================================================
+// Renderer_OpenGL45::CreateBatch
+// =====================================================================
+BatchHandle Renderer_OpenGL45::CreateBatch( RenderBatchParam* params, const int& batchSize )
+{
+	if ( nullptr == params || batchSize <= BatchSizeThreshold )
+	{
+		return BatchInvalid;
+	}
+
+	instancedArrays.push_back( InstancedArray( params, batchSize ) );
+	InstancedArray& ia = instancedArrays.back();
+
+	if ( !ia.IsValid() )
+	{
+		return BatchInvalid;
+	}
+
+	return instancedArrays.size() - 1;
+}
+
+// =====================================================================
+// Renderer_OpenGL45::UpdateBatch
+// =====================================================================
+void Renderer_OpenGL45::UpdateBatch( const BatchHandle& handle, RenderBatchParam* params, const int& batchSize )
+{
+	if ( !IsBatchValid( handle ) )
+	{
+		return;
+	}
+
+	InstancedArray& ia = instancedArrays[handle];
+	ia.Update( params, batchSize );
+}
+
+// =====================================================================
+// Renderer_OpenGL45::IsBatchValid
+// =====================================================================
+bool Renderer_OpenGL45::IsBatchValid( const BatchHandle& handle )
+{
+	if ( handle == BatchInvalid )
+		return false;
+
+	if ( handle >= instancedArrays.size() )
+		return false;
+
+	if ( !instancedArrays[handle].IsValid() )
+		return false;
+
+	return true;
+}
+
+// =====================================================================
 // Renderer_OpenGL45::InitDefaultShader
 // =====================================================================
 bool Renderer_OpenGL45::InitDefaultShader()
@@ -369,23 +435,24 @@ void Renderer_OpenGL45::SetupMatrices( const RenderEntityParams& params, IShader
 // =====================================================================
 // Renderer_OpenGL45::PerformDrawCall
 // =====================================================================
-void Renderer_OpenGL45::PerformDrawCall( VertexArray& va, const RenderBatchParams* batchParams, const uint32_t& batchSize )
+void Renderer_OpenGL45::PerformDrawCall( VertexArray& va, const uint32_t& batchSize )
 {
-	va.Bind();
-
-	if ( nullptr == batchParams )
+	if ( batchSize > BatchSizeThreshold )
 	{
-		glDrawElements( GL_TRIANGLES, va.GetNumIndices(), GL_UNSIGNED_INT, nullptr );
+		glDrawElementsInstanced( GL_TRIANGLES, va.GetNumIndices(), GL_UNSIGNED_INT, nullptr, batchSize );
 	}
 	else
 	{
-		if ( batchSize > 0 )
-		{
-			glDrawElementsInstanced( GL_TRIANGLES, va.GetNumIndices(), GL_UNSIGNED_INT, nullptr, batchSize );
-		}
+		glDrawElements( GL_TRIANGLES, va.GetNumIndices(), GL_UNSIGNED_INT, nullptr );
 	}
 
 	numDrawCalls++;
+	int numTriangles = va.GetNumIndices() / 3;
+	numDrawnTriangles += numTriangles;
+	if ( batchSize > BatchSizeThreshold )
+	{
+		numDrawnTriangles += numTriangles * (batchSize - 1);
+	}
 }
 
 /*

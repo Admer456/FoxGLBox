@@ -83,11 +83,11 @@ void VertexArray::SetupVertexAttributes() const
 // =====================================================================
 // VertexArray::SetupSingleVertexAttrib
 // =====================================================================
-void VertexArray::SetupSingleVertexAttrib( const int& attribType, const int& size, const int& offset )
+void VertexArray::SetupSingleVertexAttrib( const int& attribType, const int& size, const int& offset, const int& stride )
 {
 	glEnableVertexAttribArray( attribType );
 	GLError( "VertexArray::SetupSingleVertexAttrib: called glEnableVertexAttribArray" );
-	glVertexAttribPointer( attribType, size, GL_FLOAT, GL_FALSE, Stride, VBOffset( offset ) );
+	glVertexAttribPointer( attribType, size, GL_FLOAT, GL_FALSE, stride, VBOffset( offset ) );
 	GLError( "VertexArray::SetupSingleVertexAttrib: called glVertexAttribPointer" );
 }
 
@@ -102,6 +102,122 @@ void VertexArray::PrintDebugInfo() const
 	glGetVertexArrayiv( vertexArrayHandle, GL_ELEMENT_ARRAY_BUFFER_BINDING, &info );
 
 	printf( "VertexArray::PrintDebugInfo: VA's VBO handle is %i\n", info );
+}
+
+// =====================================================================
+// InstancedArray::ctor
+// =====================================================================
+InstancedArray::InstancedArray( RenderBatchParam* params, const uint32_t& size )
+	: batchParams( params ), batchSize( size )
+{
+	Init();
+	BufferData();
+}
+
+// =====================================================================
+// InstancedArray::Init
+// =====================================================================
+void InstancedArray::Init()
+{
+	glGenBuffers( 1, &instancedBufferHandle );
+}
+
+// =====================================================================
+// InstancedArray::Update
+// =====================================================================
+void InstancedArray::Update( RenderBatchParam* params, const uint32_t& size )
+{
+	if ( nullptr == params || !size )
+	{
+		return;
+	}
+
+	batchParams = params;
+	batchSize = size;
+
+	// Bigger new batch size -> call glBufferData
+	// Smaller new batch size or equal -> only call glBufferSubData cuz' cheaper
+	BufferData( size > batchSize );
+}
+
+// =====================================================================
+// InstancedArray::Bind
+// =====================================================================
+void InstancedArray::Bind()
+{
+	glBindBuffer( GL_ARRAY_BUFFER, instancedBufferHandle );
+}
+
+// =====================================================================
+// InstancedArray::Unbind
+// =====================================================================
+void InstancedArray::Unbind()
+{
+	using attribs = VertexAttributes;
+
+	glDisableVertexAttribArray( attribs::BatchModelMatrix + 0 );
+	glDisableVertexAttribArray( attribs::BatchModelMatrix + 1 );
+	glDisableVertexAttribArray( attribs::BatchModelMatrix + 2 );
+	glDisableVertexAttribArray( attribs::BatchModelMatrix + 3 );
+
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+}
+
+// =====================================================================
+// InstancedArray::BufferData
+// =====================================================================
+void InstancedArray::BufferData( bool resize )
+{
+	if ( nullptr == batchParams )
+	{
+		return;
+	}
+
+	Bind();
+
+	// Fill the IBO with transform data
+	if ( resize )
+	{	// GL_DYNAMIC_DRAW cuz' this can change often
+		glBufferData( GL_ARRAY_BUFFER, sizeof( RenderBatchParam ) * batchSize, batchParams, GL_DYNAMIC_DRAW );
+		printf( "InstancedArray::BufferData: batchSize = %i\n", (int)batchSize );
+	}
+	else
+	{
+		glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof( RenderBatchParam ) * batchSize, batchParams );
+		printf( "InstancedArray::BufferSubData: batchSize = %i\n", (int)batchSize );
+	}
+
+}
+
+// =====================================================================
+// InstancedArray::SetupVertexAttributes
+// 
+// Lots of things can go wrong here lol
+// Assumes this IBO is already bound with a bound VAO
+// =====================================================================
+void InstancedArray::SetupVertexAttributes()
+{
+	// sizeof(vec3) + sizeof(mat4)
+	constexpr int InstancedArrayStride = 16 * sizeof( float );
+	using attribs = VertexAttributes;
+	using offsets = VertexAttribOffsets;
+
+	// Model matrices
+	VertexArray::SetupSingleVertexAttrib( attribs::BatchModelMatrix + 0, 4, offsets::BatchModelMatrix + offsets::Vec4Size * 0, InstancedArrayStride );
+	VertexArray::SetupSingleVertexAttrib( attribs::BatchModelMatrix + 1, 4, offsets::BatchModelMatrix + offsets::Vec4Size * 1, InstancedArrayStride );
+	VertexArray::SetupSingleVertexAttrib( attribs::BatchModelMatrix + 2, 4, offsets::BatchModelMatrix + offsets::Vec4Size * 2, InstancedArrayStride );
+	VertexArray::SetupSingleVertexAttrib( attribs::BatchModelMatrix + 3, 4, offsets::BatchModelMatrix + offsets::Vec4Size * 3, InstancedArrayStride );
+	GLError( "InstancedArray::SetupVertexAttributes: set up BatchModelMatrix" );
+	
+	// Reset the current array buffer
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	
+	// Update batch data every 1 instance
+	glVertexAttribDivisor( attribs::BatchModelMatrix + 0, 1 );
+	glVertexAttribDivisor( attribs::BatchModelMatrix + 1, 1 );
+	glVertexAttribDivisor( attribs::BatchModelMatrix + 2, 1 );
+	glVertexAttribDivisor( attribs::BatchModelMatrix + 3, 1 );
+	GLError( "InstancedArray::SetupVertexAttributes: called glVertexAttribDivisor on BatchModelMatrix" );
 }
 
 // =====================================================================
@@ -154,7 +270,7 @@ void VertexBuffer::Bind() const
 // ===============================================================================================
 void VertexBuffer::BufferData( const float* vertexData, size_t size, int type )
 {
-	if ( vertexData == nullptr )
+	if ( nullptr == vertexData )
 	{
 		vertexData = data.data();
 		size = data.size() * sizeof(float);

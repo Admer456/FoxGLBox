@@ -9,9 +9,23 @@
 using byte = uint8_t;
 #endif
 
-using RenderEntityHandle = unsigned int;
-using RenderModelHandle = unsigned int;
-constexpr RenderEntityHandle RenderHandleInvalid = ~0;
+// SHUT UP MSVC
+#pragma warning ( disable : 4244 )
+#pragma warning ( disable : 4267 )
+#pragma warning ( disable : 4305 )
+#pragma warning ( disable : 4309 )
+#pragma warning ( disable : 4312 )
+
+using       RenderEntityHandle = uint32_t;
+using       RenderModelHandle = uint32_t;
+constexpr   RenderEntityHandle RenderHandleInvalid = ~0;
+
+using       BatchHandle = uint16_t;
+constexpr   BatchHandle BatchInvalid = ~0U;
+
+// Batch size of 1 -> non-instanced rendering
+// Batch size of 2 and higher -> instanced rendering
+constexpr   uint32_t BatchSizeThreshold = 1U;
 
 // Includes for basic stuff
 #include "glm/glm.hpp"
@@ -21,14 +35,24 @@ constexpr RenderEntityHandle RenderHandleInvalid = ~0;
 #include "RenderModelParams.hpp"
 #include "RenderView.hpp"
 
+// (things that are exposed to the end user are marked with [E])
 // It is important to differentiate several concepts:
-// Render entity        -> an object in the renderworld that gets drawn by its parameters and model
-// Render entity params -> a bunch of properties that can be controlled by the end user, to affect the render entity
-// Render entity handle -> a handle to a render entity, exposed to the end user
-// Render model         -> an object that is referred to by a render entity, via a handle, to determine its appearance, exposed
-// Render model handle  -> a handle to a render model, also exposed
-
+// -----------------------
+// Render entity           -> an object in the renderworld that gets drawn by its parameters and model
+// Render entity params[E] -> a bunch of properties that can be controlled by the end user, to affect the render entity
+// Render entity handle[E] -> a handle to a render entity
+// -----------------------
+// Render model            -> an object that is referred to by a render entity, via a handle, to determine its appearance
+// Render model params[E]  -> data used to initialise the render model, whether it's from a file or custom runtime geometry
+// Render model handle[E]  -> a handle to a render model
+// -----------------------
+// Render batch            -> an object in the render backend that allows the end user to render thousands 
+//                            of instances of the same render entity, which helps with performance
+// Render batch params[E]  -> render data for each instance in the batch, located in render entity params
+// Render batch handle     -> a handle to a render batch, which is actually an internal thing between the frontend & backend
+// -----------------------
 // Also, on the higher level:
+// -----------------------
 // Render system        -> what brings us the renderer frontend
 // Render world         -> the renderer frontend, exposed to the user
 // Renderer             -> the renderer backend, the user can only choose which one to use
@@ -133,6 +157,14 @@ public:
 
     // Renders the view into a frame
     virtual void                RenderFrame( const RenderView& view ) = 0;
+
+    // ========================================
+    // Utilities
+
+    // Calculates a model matrix from the given parameters
+    // Useful to calculate model matrices for render batching
+    virtual glm::mat4           CalculateModelMatrix( const glm::vec3& position, const glm::mat4& orientation ) = 0;
+
 };
 
 class IRenderSystem

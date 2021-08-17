@@ -5,6 +5,10 @@ struct VertexAttributes
     static constexpr int Positions = 0;
     static constexpr int Normals = 1;
     static constexpr int TexCoords = 2;
+    // 3-6 are reserved
+    // BatchOrientation will take up 7, 8, 9 and 10
+    // because mat4 is equivalent to four vec4s
+    static constexpr int BatchModelMatrix = 7;
 };
 
 struct VertexAttribOffsets
@@ -12,10 +16,15 @@ struct VertexAttribOffsets
     static constexpr size_t FloatSize = sizeof( float );
     static constexpr size_t Int32Size = sizeof( int32_t );
     static constexpr size_t Int16Size = sizeof( int16_t );
+    static constexpr size_t Vec3Size = FloatSize * 3;
+    static constexpr size_t Vec4Size = FloatSize * 4;
+    static constexpr size_t Mat4Size = sizeof( float ) * 16;
 
     static constexpr int Positions = 0;
     static constexpr int Normals = Positions + 3*FloatSize;
     static constexpr int TexCoords = Normals + 3*FloatSize;
+
+    static constexpr int BatchModelMatrix = 0;
 };
 
 class DrawMesh;
@@ -94,22 +103,46 @@ public:
     
     void PrintDebugInfo() const;
 
-private:
-    void SetupIndices( const DrawSurface* surf );
-
-
     static void* VBOffset( const int& num )
     {
         return reinterpret_cast<void*>(num);
     }
 
-    static void SetupSingleVertexAttrib( const int& attribType, const int& size = 3, const int& offset = 0 );
+    static void SetupSingleVertexAttrib( const int& attribType, const int& size = 3, const int& offset = 0, const int& stride = Stride );
+
+private:
+    void SetupIndices( const DrawSurface* surf );
 
     GLuint vertexArrayHandle{ 0 };
     GLuint elementBufferHandle{ 0 };
     std::vector<vertexid_t> indices;
     VertexBuffer* vertexBuffer{ nullptr };
     IMaterial* material{ nullptr };
+};
+
+// =====================================================================
+// InstancedArray
+// 
+// Represents an OpenGL instanced array to be used with batch rendering
+// =====================================================================
+class InstancedArray
+{
+public:
+    InstancedArray( RenderBatchParam* params, const uint32_t& size );
+
+    void Init();
+    void Update( RenderBatchParam* params, const uint32_t& size );
+    void Bind();
+    void Unbind();
+    void BufferData( bool resize = true );
+    void SetupVertexAttributes();
+    bool IsValid() const { return (nullptr != batchParams) && (batchSize > BatchSizeThreshold); }
+
+private:
+    RenderBatchParam* batchParams{ nullptr };
+    uint32_t batchSize{ 0 };
+
+    GLuint instancedBufferHandle{ 0 };
 };
 
 // =====================================================================

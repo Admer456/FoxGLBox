@@ -26,18 +26,13 @@ public:
     // Reloads all shaders
     virtual void                ReloadShaders() = 0;
 
-    // Renders a DrawSurface, is equivalent to 1 drawcall
-    // @param params: render entity parameters, to position and rotate the model in space, among other things
-    // @param surface: surface ID, must not be bigger than the number of surfaces in a model
-    virtual void                RenderSurface( const RenderEntityParams& params, const int& surface ) = 0;
-
     // Renders multiple DrawSurface instances, is still equivalent to 1 drawcall (depending on the backend)
     // @param params: render entity parameters, to position and rotate the model in space, among other things
     // @param surface: surface ID, must not be bigger than the number of surfaces in a model
-    // @param batchParams: batch-specific parameters for each instance
-    // @param batchSize: how many instances to draw
-    virtual void                RenderSurfaceBatch( const RenderModelHandle& params, const int& surface, 
-                                                    const RenderBatchParams* batchParams, const int& batchSize ) = 0;
+    // @param batchHandle: handle to the backend batch object; draws single instance if invalid
+    // @param batchSize: how many instances to draw; draws single instances if 0 or 1
+    virtual void                RenderSurfaceBatch( const RenderEntityParams& params, const int& surface,
+                                                    const BatchHandle& batchHandle, const int& batchSize ) = 0;
 
     // Set the render view, update the viewport etc.
     virtual void                SetRenderView( const RenderView* view ) = 0;
@@ -58,6 +53,14 @@ public:
     virtual ITexture*           AllocateTexture( const char* name ) = 0;
     // Updates a texture with new data
     virtual void                UpdateTexture( ITexture* texture, byte* data ) = 0;
+
+    // Registers a render batch so a render entity can be rendered in multiple instances
+    virtual BatchHandle         CreateBatch( RenderBatchParam* params, const int& batchSize ) = 0;
+    // Updates data for this render batch
+    virtual void                UpdateBatch( const BatchHandle& handle, RenderBatchParam* params, const int& batchSize ) = 0;
+    // Checks if the handle and the batch at the handle are valid
+    virtual bool                IsBatchValid( const BatchHandle& handle ) = 0;
+
 };
 
 /*
