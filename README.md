@@ -1,7 +1,8 @@
 # FoxGLBox
 
 A small renderer project for learning.   
-![Screenshot](https://i.imgur.com/dfuBsIC.jpg)
+![](https://i.imgur.com/dfuBsIC.jpg)
+![](https://i.imgur.com/pLuVO3Z.jpg)
 
 ## Downloads
 
@@ -52,15 +53,15 @@ Other than that, there's the concept of a render view, which is essentially a ca
 # Plans
 
 Lots of stuff! In random order:
-- instanced rendering
+- ~~instanced rendering~~
 - more fleshed out material system
 - various volumetrics: fog, smoke, clouds
 - transparency and potentially order-independent transparency via depth peeling or another, better method
 - render target textures (cameras rendering their view to a dynamic texture)
+- billboards/sprites
 - Z-feather a.k.a. soft particle billboards
 - shadowmapping
 - environment mapping
-- billboards/sprites
 - particles (Effekseer integration alternatively?)
 - plugin system so I don't have to jam more internal model loaders (imagine a Quake BSP model loading plugin)
 - framebuffers for OpenGL backends
