@@ -83,6 +83,19 @@ public:
     virtual void SetTextureFlags( const uint16_t& newFlags ) = 0;
 };
 
+enum ShaderFlags
+{
+    // This shader is a regular 3D vertex & fragment shader
+    // It can be used to render standard surfaces
+    ShaderFlag_Normal = 1 << 0,
+    // ShaderFlag_Normal + can be used with render batching
+    ShaderFlag_Instanced = 1 << 1,
+    // ShaderFlag_Normal + can be used with skinned animated models
+    ShaderFlag_CanSkin = 1 << 2,
+
+    ShaderFlag_MAX = 1 << 15
+};
+
 class IShader
 {
 public:
@@ -101,7 +114,7 @@ public:
     virtual void Reload() = 0;
     
     // Binds the shader to be used for rendering
-    virtual void Bind() = 0;
+    virtual void Bind( uint16_t shaderFlags ) = 0;
     
     // @returns The error message, in case there was one while compiling
     virtual const char* GetErrorMessage() const = 0;
@@ -118,6 +131,9 @@ public:
     
     // @returns If the shader can be used for skinned meshes
     virtual bool CanSkin() const = 0;
+
+    // Bind the shader for skinned rendering
+    virtual void BindSkinned() = 0;
     */
 
     virtual uint32_t GetUniformHandle( const char* uniformName ) const = 0;

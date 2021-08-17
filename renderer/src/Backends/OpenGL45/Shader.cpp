@@ -32,6 +32,9 @@ bool Shader::Load( const char* shaderPath )
 		return false;
 	}
 
+	supportedShaderFlags = ExtractShaderMeta( shaderFile, versionText );
+	PopulateShaderObjects();
+
 	vertexText = ExtractShaderText( "vertex", shaderFile );
 	fragmentText = ExtractShaderText( "fragment", shaderFile );
 
@@ -40,64 +43,93 @@ bool Shader::Load( const char* shaderPath )
 
 bool Shader::Compile()
 {
-	// Create everything
-	shaderHandle = glCreateProgram();
-	vertexShader = glCreateShader( GL_VERTEX_SHADER );
-	fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
-
-	// Load the shaders with code
-	const char* vertexString = vertexText.c_str();
-	const char* fragmentString = fragmentText.c_str();
-
-	glShaderSource( vertexShader, 1, &vertexString, nullptr );
-	glShaderSource( fragmentShader, 1, &fragmentString, nullptr );
-	
-	// Compile the shaders
-	glCompileShader( vertexShader );
-	glCompileShader( fragmentShader );
-
-	const char* errorMessage = GetErrorMessage();
-	if ( nullptr != errorMessage )
+	for ( ShaderObject& object : apiObjects )
 	{
-		printf( "Error while compiling: %s\n", errorMessage );
-		return false;
+		// Create everything
+		object.shaderHandle = glCreateProgram();
+		object.vertexShader = glCreateShader( GL_VERTEX_SHADER );
+		object.fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
+
+		// Determine GLSL preprocessor defines for shader permutations
+		// versionText goes FIRST and foremost, then defines, then the
+		// actual shader code
+		std::string preprocessorText = versionText + DeterminePreprocessorFlags( object.shaderFlags );
+		std::string finalVertexText = preprocessorText + vertexText;
+		std::string finalFragmentText = preprocessorText + fragmentText;
+
+		// Load the shaders with code
+		const char* vertexString = finalVertexText.c_str();
+		const char* fragmentString = finalFragmentText.c_str();
+
+		printf( "## VERTEX SHADER STRING:\n%s\n", vertexString );
+
+		glShaderSource( object.vertexShader, 1, &vertexString, nullptr );
+		glShaderSource( object.fragmentShader, 1, &fragmentString, nullptr );
+
+		// Compile the shaders
+		glCompileShader( object.vertexShader );
+		glCompileShader( object.fragmentShader );
+
+		currentObject = &object;
+		const char* errorMessage = GetErrorMessage();
+		if ( nullptr != errorMessage )
+		{
+			printf( "Error while compiling: %s\n", errorMessage );
+			return false;
+		}
+
+		// Attach shaders & link
+		glAttachShader( object.shaderHandle, object.vertexShader );
+		glAttachShader( object.shaderHandle, object.fragmentShader );
+		glLinkProgram( object.shaderHandle );
+
+		errorMessage = GetLinkerErrorMessage();
+		if ( nullptr != errorMessage )
+		{
+			printf( "Error while linking: %s\n", errorMessage );
+			return false;
+		}
+
+		// Delete these shader objects, we dun need them any more
+		glDeleteShader( object.vertexShader );
+		glDeleteShader( object.fragmentShader );
+
+		// Get some uniform handles
+		object.uniformProjectionMatrix = GetUniformHandle( "projMatrix" );
+		object.uniformModelMatrix = GetUniformHandle( "modelMatrix" );
+		object.uniformViewMatrix = GetUniformHandle( "viewMatrix" );
 	}
-
-	// Attach shaders & link
-	glAttachShader( shaderHandle, vertexShader );
-	glAttachShader( shaderHandle, fragmentShader );
-	glLinkProgram( shaderHandle );
-
-	errorMessage = GetLinkerErrorMessage();
-	if ( nullptr != errorMessage )
-	{
-		printf( "Error while linking: %s\n", errorMessage );
-		return false;
-	}
-
-	// Delete these shader objects, we dun need them any more
-	glDeleteShader( vertexShader );
-	glDeleteShader( fragmentShader );
-
-	// Get some uniform handles
-	uniformProjectionMatrix = GetUniformHandle( "projMatrix" );
-	uniformModelMatrix = GetUniformHandle( "modelMatrix" );
-	uniformViewMatrix = GetUniformHandle( "viewMatrix" );
 
 	return true;
 }
 
 void Shader::Reload()
 {
-	glDeleteProgram( shaderHandle );
+	for ( ShaderObject& object : apiObjects )
+	{
+		glDeleteProgram( object.shaderHandle );
+	}
 
 	Load( fileName.c_str() );
 	Compile();
 }
 
-void Shader::Bind()
+void Shader::Bind( uint16_t shaderFlags )
 {
-	glUseProgram( shaderHandle );
+	if ( !((supportedShaderFlags & shaderFlags) ^ shaderFlags) )
+	{
+		for ( ShaderObject& object : apiObjects )
+		{
+			if ( object.shaderFlags == shaderFlags )
+			{
+				glUseProgram( object.shaderHandle );
+				currentObject = &object;
+				return;
+			}
+		}
+	}
+	
+	glUseProgram( 0 );
 }
 
 const char* Shader::GetErrorMessage() const
@@ -106,17 +138,17 @@ const char* Shader::GetErrorMessage() const
 	static char infoLog[512];
 
 	// Check the vertex shader
-	glGetShaderiv( vertexShader, GL_COMPILE_STATUS, &success );
+	glGetShaderiv( currentObject->vertexShader, GL_COMPILE_STATUS, &success );
 	if ( !success )
 	{
-		glGetShaderInfoLog( vertexShader, 512, nullptr, infoLog );
+		glGetShaderInfoLog( currentObject->vertexShader, 512, nullptr, infoLog );
 		return infoLog;
 	}
 	// Then the fragment shader
-	glGetShaderiv( fragmentShader, GL_COMPILE_STATUS, &success );
+	glGetShaderiv( currentObject->fragmentShader, GL_COMPILE_STATUS, &success );
 	if ( !success )
 	{
-		glGetShaderInfoLog( fragmentShader, 512, nullptr, infoLog );
+		glGetShaderInfoLog( currentObject->fragmentShader, 512, nullptr, infoLog );
 		return infoLog;
 	}
 
@@ -128,10 +160,10 @@ const char* Shader::GetLinkerErrorMessage() const
 	int success;
 	static char infoLog[512];
 
-	glGetProgramiv( shaderHandle, GL_LINK_STATUS, &success );
+	glGetProgramiv( currentObject->shaderHandle, GL_LINK_STATUS, &success );
 	if ( !success )
 	{
-		glGetProgramInfoLog( shaderHandle, 512, nullptr, infoLog );
+		glGetProgramInfoLog( currentObject->shaderHandle, 512, nullptr, infoLog );
 		return infoLog;
 	}
 
@@ -140,7 +172,7 @@ const char* Shader::GetLinkerErrorMessage() const
 
 uint32_t Shader::GetUniformHandle( const char* uniformName ) const
 {
-	return glGetUniformLocation( shaderHandle, uniformName );
+	return glGetUniformLocation( currentObject->shaderHandle, uniformName );
 }
 
 void Shader::SetUniform1i( const uint32_t& uniformHandle, const int& value )
@@ -178,6 +210,71 @@ void Shader::SetUniformmat4( const uint32_t& uniformHandle, const glm::mat4& m )
 	glUniformMatrix4fv( uniformHandle, 1, GL_FALSE, &m[0].x );
 }
 
+constexpr uint16_t ShaderFlagCombinations[] =
+{
+	ShaderFlag_Normal,
+	ShaderFlag_Normal | ShaderFlag_Instanced,
+	ShaderFlag_Normal | ShaderFlag_CanSkin,
+	ShaderFlag_Normal | ShaderFlag_Instanced | ShaderFlag_CanSkin
+};
+
+void Shader::PopulateShaderObjects()
+{
+	ShaderObject object;
+
+	for ( const uint16_t& flagCombo : ShaderFlagCombinations )
+	{
+		// We gotta find out if our supportedShaderFlags
+		// match the current shader flag combo
+		// If supportedShaderFlags doesn't contain
+		// ONE BIT of the combination, skip it
+		uint16_t comparison = flagCombo & supportedShaderFlags;
+		if ( comparison ^ flagCombo )
+		{
+			continue;
+		}
+
+		// Finally, register this shader variant
+		object.shaderFlags = flagCombo;
+		apiObjects.push_back( object );
+	}
+}
+
+uint16_t Shader::ExtractShaderMeta( std::ifstream& file, std::string& versionText )
+{
+	uint16_t shaderFlags = ShaderFlag_Normal;
+	std::string token;
+
+	// Record where we were, so we can return to this once done
+	auto lastSeekPoint = file.tellg();
+	
+	// Go to the start of the file
+	file.clear();
+	file.seekg( 0, std::ios::beg );
+
+	while ( file >> token )
+	{
+		if ( token == "#supports" )
+		{
+			file >> token;
+			if ( token == "instancing" || token == "batching" )
+			{
+				shaderFlags |= ShaderFlag_Instanced;
+			}
+		}
+
+		if ( token == "#version" )
+		{
+			std::getline( file, token );
+			versionText = "#version " + token + "\n";
+		}
+	}
+
+	// Go back
+	file.seekg( lastSeekPoint );
+	return shaderFlags;
+}
+
 std::string Shader::ExtractShaderText( const char* sectionName, std::ifstream& file )
 {
 	std::ostringstream textStream; // all the shader text for this section
@@ -193,6 +290,12 @@ std::string Shader::ExtractShaderText( const char* sectionName, std::ifstream& f
 	
 	while ( std::getline( file, line ) )
 	{
+		// Skip any FoxGLBox-specific keywords
+		if ( line.find( "#supports" ) != std::string::npos )
+		{
+			continue;
+		}
+
 		// Find #section sectionName
 		if ( !entered && (line.find( "#section" ) != std::string::npos) )
 		{
@@ -204,7 +307,7 @@ std::string Shader::ExtractShaderText( const char* sectionName, std::ifstream& f
 			continue;
 		}
 		// If we're in a section and we find an end, we get out
-		if ( entered && (line.find( "#end" ) != std::string::npos) )
+		if ( entered && (line.find( "#endsection" ) != std::string::npos) )
 		{
 			entered = false;
 			break;
@@ -221,6 +324,16 @@ std::string Shader::ExtractShaderText( const char* sectionName, std::ifstream& f
 	file.seekg( lastSeekPoint );
 
 	return textStream.str();
+}
+
+std::string Shader::DeterminePreprocessorFlags( uint16_t shaderFlags )
+{
+	std::string result = "\n";
+
+	if ( shaderFlags & ShaderFlag_Instanced )
+		result += "#define SHADER_INSTANCED 1\n";
+
+	return result;
 }
 
 /*

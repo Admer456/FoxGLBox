@@ -324,7 +324,7 @@ bool Renderer_OpenGL45::InitDefaultShader()
 // =====================================================================
 void Renderer_OpenGL45::BindDefaultShader()
 {
-	defaultShader.Bind();
+	defaultShader.Bind( ShaderFlag_Normal );
 }
 
 // =====================================================================

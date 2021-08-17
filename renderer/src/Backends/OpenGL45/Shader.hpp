@@ -3,6 +3,20 @@
 #include <string>
 #include <fstream>
 
+class ShaderObject final
+{
+public:
+	uint32_t		vertexShader;
+	uint32_t		fragmentShader;
+	uint32_t		shaderHandle;
+
+	uint32_t		uniformProjectionMatrix;
+	uint32_t		uniformModelMatrix;
+	uint32_t		uniformViewMatrix;
+
+	uint16_t		shaderFlags;
+};
+
 // =====================================================================
 //	OpenGL 4.5 shader
 // 
@@ -12,70 +26,75 @@ class Shader : public IShader
 {
 public:
 	// @returns The full path to the shader file, unless it's built-in or generated
-	const char*		GetName() const override
-	{
-		return name.c_str();
-	}
+	const char*			GetName() const override { return name.c_str(); }
 
 	// Load the shader code
 	// @param shaderPath: path to the shader
 	// @returns: false if the file cannot be found
-	bool			Load( const char* shaderPath ) override;
+	bool				Load( const char* shaderPath ) override;
 	// Build the shader
 	// @returns true on success, false if there was an error
-	bool			Compile() override;
+	bool				Compile() override;
 	// Reloads the shader
-	void			Reload();
+	void				Reload();
 	// Binds the shader to be used for rendering
-	void			Bind() override;
+	void				Bind( uint16_t shaderFlags ) override;
 	// @returns The error message, in case there was one while compiling
-	const char*		GetErrorMessage() const override;
+	const char*			GetErrorMessage() const override;
 	// @returns The linker error message done during glLinkProgram
-	const char*		GetLinkerErrorMessage() const;
+	const char*			GetLinkerErrorMessage() const;
 
 	// Uniforms //
-	uint32_t		GetUniformHandle( const char* uniformName ) const override;
-	void			SetUniform1i( const uint32_t& uniformHandle, const int& value ) override;
-	void			SetUniform1f( const uint32_t& uniformHandle, const float& value ) override;
-	void			SetUniform2f( const uint32_t& uniformHandle, const float& x, const float& y ) override;
-	void			SetUniform3f( const uint32_t& uniformHandle, const float& x, const float& y, const float& z ) override;
-	void			SetUniform3fv( const uint32_t& uniformHandle, const glm::vec3& v ) override;
-	void			SetUniformmat3( const uint32_t& uniformHandle, const glm::mat3& m ) override;
-	void			SetUniformmat4( const uint32_t& uniformHandle, const glm::mat4& m ) override;
+	uint32_t			GetUniformHandle( const char* uniformName ) const override;
+	void				SetUniform1i( const uint32_t& uniformHandle, const int& value ) override;
+	void				SetUniform1f( const uint32_t& uniformHandle, const float& value ) override;
+	void				SetUniform2f( const uint32_t& uniformHandle, const float& x, const float& y ) override;
+	void				SetUniform3f( const uint32_t& uniformHandle, const float& x, const float& y, const float& z ) override;
+	void				SetUniform3fv( const uint32_t& uniformHandle, const glm::vec3& v ) override;
+	void				SetUniformmat3( const uint32_t& uniformHandle, const glm::mat3& m ) override;
+	void				SetUniformmat4( const uint32_t& uniformHandle, const glm::mat4& m ) override;
 
-	void			SetProjectionMatrix( const glm::mat4& m ) override
+	void				SetProjectionMatrix( const glm::mat4& m ) override
 	{
-		SetUniformmat4( uniformProjectionMatrix, m );
+		SetUniformmat4( currentObject->uniformProjectionMatrix, m );
 	}
 
-	void			SetModelMatrix( const glm::mat4& m ) override
+	void				SetModelMatrix( const glm::mat4& m ) override
 	{
-		SetUniformmat4( uniformModelMatrix, m );
+		SetUniformmat4( currentObject->uniformModelMatrix, m );
 	}
 	
-	void			SetViewMatrix( const glm::mat4& m ) override
+	void				SetViewMatrix( const glm::mat4& m ) override
 	{
-		SetUniformmat4( uniformViewMatrix, m );
+		SetUniformmat4( currentObject->uniformViewMatrix, m );
 	}
 
 private:
-	static std::string ExtractShaderText( const char* sectionName, std::ifstream& file );
+	// Populates apiObjects with ShaderObjects
+	// The resulting number of apiObjects will be the number of
+	// unique shader flag combinations
+	void				PopulateShaderObjects();
+
+	// Parses shader metadata, sets versionText
+	// @returns value for supportedShaderFlags
+	static uint16_t		ExtractShaderMeta( std::ifstream& file, std::string& versionText );
+	static std::string	ExtractShaderText( const char* sectionName, std::ifstream& file );
+	static std::string	DeterminePreprocessorFlags( uint16_t shaderFlags );
 
 private:
-	std::string		name{ "Default" };
-	std::string		fileName{ "" };
-	std::string		errorMessage{ "OK" };
+	std::string			name{ "Default" };
+	std::string			fileName{ "" };
+	std::string			errorMessage{ "OK" };
 
-	std::string		vertexText;
-	std::string		fragmentText;
+	std::string			versionText{ "#version 450 core\n" };
+	std::string			vertexText;
+	std::string			fragmentText;
 
-	uint32_t		vertexShader;
-	uint32_t		fragmentShader;
-	uint32_t		shaderHandle;
+	// ShaderObject stores permutated shader handles
+	std::vector<ShaderObject> apiObjects;
+	ShaderObject*		currentObject;
 
-	uint32_t		uniformProjectionMatrix;
-	uint32_t		uniformModelMatrix;
-	uint32_t		uniformViewMatrix;
+	uint16_t			supportedShaderFlags{ ShaderFlag_Normal };
 };
 
 /*
