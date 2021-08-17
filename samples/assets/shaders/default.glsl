@@ -1,10 +1,17 @@
-#section vertex
 #version 450 core
+#supports instancing
+
+#section vertex
 
 // Render data
 layout ( location = 0 ) in vec3 vertexPosition;
 layout ( location = 1 ) in vec3 vertexNormal;
 layout ( location = 2 ) in vec2 vertexCoord;
+
+#if SHADER_INSTANCED
+// slots 3 to 6 are reserved for other things
+layout ( location = 7 ) in mat4 instanceModelMatrix;
+#endif
 
 // Uniforms
 uniform mat4 modelMatrix;
@@ -19,21 +26,27 @@ out float fragmentVertexID;
 
 void main()
 {
-    // Send the normal & texcoord to the fragment shader
-    fragmentPosition = (modelMatrix * vec4( vertexPosition, 1.0 )).xyz;
-    fragmentNormal = (modelMatrix * vec4( vertexNormal, 0.0 )).xyz;
-    fragmentCoord = vertexCoord;
+#if SHADER_INSTANCED
+    const mat4 calcModelMatrix = instanceModelMatrix;
+#else
+    const mat4 calcModelMatrix = modelMatrix;
+#endif
 
+    // Send the normal & texcoord to the fragment shader
+    fragmentPosition = (calcModelMatrix * vec4( vertexPosition, 1.0 )).xyz;
+    fragmentNormal = (calcModelMatrix * vec4( vertexNormal, 0.0 )).xyz;
+
+    fragmentCoord = vertexCoord;
+    
     // Calculate vertex position
-    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4( vertexPosition, 1.0 );
+    gl_Position = projMatrix * viewMatrix * calcModelMatrix * vec4( vertexPosition, 1.0 );
 
     fragmentVertexID = gl_VertexID;
 }
 
-#end // vertex
+#endsection // vertex
 
 #section fragment
-#version 450 core
 
 // Inputs from the vertex shader
 in vec3 fragmentPosition;
@@ -83,4 +96,4 @@ void main()
     outColour.a = 1.0;
 }
 
-#end // fragment
+#endsection // fragment
