@@ -47,7 +47,7 @@ void Engine::Init( const char* title, int width, int height )
     windowHeight = height;
 
     // Turning on VSync here so my GPU (and yours) doesn't crash'n'burn
-	SDL_GL_SetSwapInterval( 1 );
+	SDL_GL_SetSwapInterval( 0 );
     // Set relative mouse mode
     SDL_SetRelativeMouseMode( SDL_TRUE );
 
@@ -106,6 +106,9 @@ bool Engine::RunFrame()
     auto microSeconds = chrono::duration_cast<chrono::microseconds>(endPoint - startPoint);
 
     frameTime = (microSeconds.count() / (1000.0f * 1000.0f)) * timeScale;
+    float frameRate = 1.0f / frameTime;
+
+    printf( "## Frame time: %3.2f ms\n## Frame rate: %4.1f fps\n\n", (frameTime * 1000.0f), frameRate );
 
     return true;
 }
@@ -171,8 +174,9 @@ void Engine::CreateGameEntities()
     CreateEntity<Prop>( fglVector::Zero, fglVector( 90.0f, 0.0f, 0.0f ), terrainHandle );
     CreateEntity<Prop>( fglVector( 2.0f, 1.0f, 6.0f ), fglVector( 90.0f, 0.0f, 0.0f ), testCoverHandle );
     CreateEntity<Prop>( fglVector( 2.0f, 1.0f, 2.3f ), fglVector( 90.0f, 0.0f, 0.0f ), testRockHandle );
-    CreateEntity<PropRotating>( fglVector( 2.0f, 0.0f, 3.0f ), fglVector::Zero, amanHandle );
-    CreateEntity<Player>( fglVector( -8.0f, 0.0f, 0.0f ), fglVector::Zero, 0 );
+    CreateEntity<PropRotating>(  fglVector(  2.0f,  0.0f,  3.0f  ), fglVector::Zero, amanHandle );
+    CreateEntity<PropInstanced>( fglVector(  4.0f, -2.0f,  5.0f  ), fglVector::Zero, testRockHandle );
+    CreateEntity<Player>(        fglVector( -8.0f,  0.0f,  0.0f  ), fglVector::Zero, 0 );
 
     for ( auto& ent : gameEntities )
     {

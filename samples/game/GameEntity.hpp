@@ -55,6 +55,16 @@ namespace Entities
 		void			Present() override;
 	};
 
+	class PropInstanced : public Prop
+	{
+	public:
+		virtual void	Spawn() override;
+
+	private:
+		static constexpr uint32_t BatchSize = 65536; //1024;
+		RenderBatchParam batch[BatchSize];
+	};
+
 	class PropRotating : public Prop
 	{
 	public:

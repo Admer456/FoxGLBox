@@ -72,6 +72,48 @@ void Prop::Present()
 }
 
 //============================
+// PropInstanced
+//============================
+
+void PropInstanced::Spawn()
+{
+	fglVector originalPosition = position;
+	fglVector originalRotation = rotation;
+
+	// Populate render batch data
+	float cycle = 0.0f;
+	for ( RenderBatchParam& param : batch )
+	{
+		cycle += 0.1f;
+
+		float radius = ((BatchSize * 0.1f) - cycle) + 1.2f;
+		float radiusDecreasing = std::pow( radius, 0.86f );
+		position.x = originalPosition.x + cos( cycle * 1.3f - radius ) * radiusDecreasing * 1.333f;
+		position.y = originalPosition.y + sin( cycle * 1.3f - radius ) * radiusDecreasing * 1.333f;
+		position.z = originalPosition.z + cos( (radius - 1.2f) * 0.04f ) * 13.0f;
+		position.z += (radius * radius) / 4000.0f;
+
+		rotation.y += 0.1f;
+
+		// Update renderParams.position and renderParams.orientation
+		CalculateRenderParams();
+
+		param.modelMatrix = gEngine->GetRenderWorld()->CalculateModelMatrix( renderParams.position, renderParams.orientation );
+	}
+
+	// Reset the entity's transform
+	position = originalPosition;
+	rotation = originalRotation;
+
+	renderParams.batch = batch;
+	renderParams.batchSize = BatchSize;
+
+	// Call Prop::Spawn at the end, because we don't wanna set up render
+	// batch data AFTER the render entity was created - that'd be suboptimal
+	Prop::Spawn();
+}
+
+//============================
 // PropRotating
 //============================
 
@@ -172,22 +214,32 @@ void Player::UpdateMovement( const float& deltaTime )
 	};
 
 	const float PlayerSpeed = 5.0f * deltaTime;
+	static float modifier = 1.0f;
+
+	if ( inputFlags & InputJump )
+	{
+		modifier = modifier * 0.99f + (100.0f * 0.01f);
+	}
+	else
+	{
+		modifier = modifier * 0.99f + (1.0f * 0.01f);
+	}
 
 	if ( inputFlags & InputForward )
 	{
-		position += cameraLookDirection * PlayerSpeed;
+		position += cameraLookDirection * PlayerSpeed * modifier;
 	}
 	if ( inputFlags & InputBackward )
 	{
-		position -= cameraLookDirection * PlayerSpeed;
+		position -= cameraLookDirection * PlayerSpeed * modifier;
 	}
 	if ( inputFlags & InputRight )
 	{
-		position += localRight * PlayerSpeed;
+		position += localRight * PlayerSpeed * modifier;
 	}
 	if ( inputFlags & InputLeft )
 	{
-		position -= localRight * PlayerSpeed;
+		position -= localRight * PlayerSpeed * modifier;
 	}
 }
 
@@ -202,7 +254,7 @@ void Player::UpdateCamera()
 	}
 	if ( rotation.x < -89.9f )
 	{
-		rotation.x = 89.9f;
+		rotation.x = -89.9f;
 	}
 
 	cameraPosition = position + fglVector( 0.0f, 0.0f, 1.7f );
