@@ -32,3 +32,4 @@ extern/*
 !extern/glm/
 !extern/SDL2-2.0.14/
 !extern/stb-image/
+!samples/assets/*
