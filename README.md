@@ -1,3 +1,15 @@
+# Status: discontinued
+...in favour of a reincarnation of this project. (might appear here by September 2022)
+
+I intended for this to be a high-level rendering framework similar-ish to Ogre3D, but then I asked myself how it could possibly integrate with my projects and there were a lot of issues. Then I wanted to learn Vulkan, then I discovered Vookoo, then NVRHI. Then I realised I'd have to rewrite the render backend interface entirely to take advantage of a modern rendering API, which I'd really like to use for the sake of future-proofing and some useful features they bring to the table.
+
+Also, the entire repo's structure was kind of a mess. Ideally, I'd have separate repositories for different components:
+* the library itself,
+* samples & assets,
+* documentation.
+
+So yeah, I think a reboot in the near future will be nice.
+
 # FoxGLBox
 
 A small renderer project for learning.   
